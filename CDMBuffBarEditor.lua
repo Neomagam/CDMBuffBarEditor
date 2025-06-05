@@ -5,6 +5,7 @@ local copyDB = {}
 local spellDBcopy = {}
 local checkBoxNames = {}
 local isLoaded = false
+local barsEnabled = 0
 
 ----------- DEBUG HELPERS ----------
 local function debug(text) 
@@ -41,9 +42,11 @@ local function UpdateCooldownViewerCategorySet(category)
 
 	if category == 3 then
 		catSet = {}
+		barsEnabled = 0
 		for key, value in pairs(spellDBcopy) do
 			if copyDB[key] then
 				table.insert(catSet, value)
+				barsEnabled = barsEnabled + 1
 			end
 		end
 	end
@@ -89,12 +92,10 @@ local function createCheckbox(panel, label, key)
  end
  
  local function OnFrameHide()
-	BuffBarCooldownViewer:RefreshData()			
+	BuffBarCooldownViewer:RefreshData()	
+	BuffBarCooldownViewer:RefreshLayout()		
 	--Color changes need to be applied here
 	
-	--Make the event handler write to DB before Logout Event?
-	cdmbbe_spellDB = spellDBcopy
-	cdmbbeDB = copyDB
 	debug("refreshed")
  end
 
@@ -151,18 +152,15 @@ debug("functions loaded")
 SLASH_CDMBBE1 = '/cdmbbe'
 local function handler(msg, editBox)
 	local command, rest = msg:match("^(%S*)%s*(.-)$")
-	if command == "child" then
-		--BuffBarCooldownViewer:GetItemFrames()[2]:GetBarFrame():SetStatusBarColor(1.0, 0.0, 1.0, 1.0)
-		printTable(BuffBarCooldownViewer:GetItemFrames()[1])
-	elseif command == "refresh" then
-		BuffBarCooldownViewer:RefreshData()
-		debug("refreshed")
+	if command == "get" then
+		print(BuffBarCooldownViewer:GetHeight())	
+	elseif command == "set" then
+		BuffBarCooldownViewer:GetItemFrames()[1]:GetBarFrame():SetStatusBarColor(1.0, 0.0, 1.0, 1.0)
+		debug("set")
 	elseif command == "enable" then
 		loadOptions()
 	else
 		print("Cooldown Manager Buff Bar Editor" .. "- Commands:")
-        print("/cdmbbe child - Lists Children of the BuffBarCooldownViewer object")
-        print("/cdmbbe refresh - Refreshes the buff bar")
         print("/cdmbbe enable - Override the Buff Bar with new spells")
 	end
 end
@@ -175,13 +173,16 @@ main:RegisterEvent("PLAYER_LOGIN")
 main:RegisterEvent("ADDON_LOADED")
 main:RegisterEvent("SELECTED_LOADOUT_CHANGED")
 main:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
-main:RegisterEvent("PLAYER_TALENT_UPDATE")
+main:RegisterEvent("PLAYER_LOGOUT")
 main:SetScript("OnEvent", function(self, event, arg1)
-	if event == "ADDON_LOADED" and arg1 == "MyFirstAddon" then
+	if event == "ADDON_LOADED" and arg1 == addon_name:gsub("%s+", "") then
 		loadSavedVariables()
+	elseif event == "PLAYER_LOGOUT" then
+		cdmbbe_spellDB = spellDBcopy
+		cdmbbeDB = copyDB
 	elseif event == "PLAYER_LOGIN" or event == "SELECTED_LOADOUT_CHANGED" or event == "ACTIVE_TALENT_GROUP_CHANGED" then
 		debug("Event trigger: " .. event)
 		loadOptions()
-		BuffBarCooldownViewer:RefreshData()	
+		OnFrameHide()
 	end
 end)
