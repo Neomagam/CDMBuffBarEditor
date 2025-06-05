@@ -1,0 +1,11 @@
+## Interface: 110105
+## Title: Cooldown Manager Buff Bar Editor
+## Notes: A comprehensive tool for modifying the Buff Bar using only what is available in the Cooldown Manager APIs
+## Author: Neomagam
+## Version: 1.1.0
+## RequiredDeps:
+## X-Curse-Project-ID: 99999
+## SavedVariables: cdmbbe_spellDB
+## SavedVariablesPerCharacter: cdmbbeDB
+
+MyFirstAddon.lua
