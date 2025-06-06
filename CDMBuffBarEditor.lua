@@ -1,11 +1,14 @@
-local debugEnabled = true
+local debugEnabled = false
 local originalGetCategorySet = C_CooldownViewer.GetCooldownViewerCategorySet
 local addon_name = "CDM Buff Bar Editor"
+local color_suffix = "_color"
 local copyDB = {}
 local spellDBcopy = {}
 local checkBoxNames = {}
 local isLoaded = false
 local barsEnabled = 0
+local barColors = {}
+local default_color = {1.0, 0.5, 0.25, 1.0}
 
 ----------- DEBUG HELPERS ----------
 local function debug(text) 
@@ -47,6 +50,7 @@ local function UpdateCooldownViewerCategorySet(category)
 			if copyDB[key] then
 				table.insert(catSet, value)
 				barsEnabled = barsEnabled + 1
+				barColors[barsEnabled] = copyDB[key .. color_suffix]
 			end
 		end
 	end
@@ -64,6 +68,61 @@ local function createCheckbox(panel, label, key)
 	checkBox.Text:SetText(label)
 	return checkBox
  end
+ 
+ local function createColorSelect(checkboxFrame, spellKey)
+	local button = CreateFrame("Button", nil, checkboxFrame)
+	button:SetPoint("TOPLEFT", checkboxFrame, "TOPRIGHT", 160, -3)
+	button:SetSize(20, 20)
+	button:SetText("Click")
+	local background = button:CreateTexture(nil, "OVERLAY")
+	background:SetSize(20, 20)
+	background:SetColorTexture(1.0, 1.0, 1.0)
+	background:SetPoint("CENTER")
+	button.background = background
+	local color = button:CreateTexture(nil, "OVERLAY")
+	color:SetSize(18, 18)
+	color:SetPoint("CENTER")
+	color.value = copyDB[spellKey .. color_suffix]
+	if nil == color.value then
+		color.value = default_color
+	end
+	color:SetColorTexture(unpack(color.value))
+	button.color = color
+	copyDB[spellKey .. color_suffix] = button.color.value
+	button:SetScript("OnClick", function()
+		local on_color_picker_change = function()
+			local new_r, new_g, new_b = ColorPickerFrame:GetColorRGB();
+			local new_a = ColorPickerFrame:GetColorAlpha();
+
+			button.color.value = {new_r, new_g, new_b, new_a}
+			button.color:SetColorTexture(new_r, new_g, new_b, new_a)
+			copyDB[spellKey .. color_suffix] = button.color.value
+		end
+
+		local on_color_picker_cancel = function()
+			local new_r, new_g, new_b, new_a = ColorPickerFrame:GetPreviousValues();
+
+			button.color.value = {new_r, new_g, new_b, new_a}
+			button.color:SetColorTexture(new_r, new_g, new_b, new_a)
+			copyDB[spellKey .. color_suffix] = button.color.value
+		end
+
+		local r, g, b, a = unpack(button.color.value)
+
+		local info = {};
+		info.swatchFunc = on_color_picker_change;
+		info.hasOpacity = false
+		info.opacityFunc = on_color_picker_change
+		info.opacity = a;
+		info.r = r
+		info.g = g
+		info.b = b
+		info.a = a
+		info.cancelFunc = on_color_picker_cancel
+    
+		ColorPickerFrame:SetupColorPickerAndShow(info);
+	end)
+end
  
  local function generateOptionsFromCategory(parent, titleFrame, index, category)
 	local cdIds = originalGetCategorySet(category)
@@ -85,6 +144,8 @@ local function createCheckbox(panel, label, key)
 				checkbox:SetPoint("TOPLEFT", titleFrame, "BOTTOMLEFT", 0, yOffset - 5)
 				index = index + 1
 				checkBoxNames[spellKey] = true
+				
+				createColorSelect(checkbox, spellKey)
 			end
 		end
 	end
@@ -94,8 +155,13 @@ local function createCheckbox(panel, label, key)
  local function OnFrameHide()
 	BuffBarCooldownViewer:RefreshData()	
 	BuffBarCooldownViewer:RefreshLayout()		
-	--Color changes need to be applied here
 	
+	if not (next(barColors) == nil) then
+		for key, value in pairs(barColors) do
+			BuffBarCooldownViewer:GetItemFrames()[key]:GetBarFrame():SetStatusBarColor(unpack(value))
+			--debug(key .. ": " .. value[1] .. ", " .. value[2] .. ", " .. value[3] .. ", ".. value[4])
+		end
+	end
 	debug("refreshed")
  end
 
@@ -126,7 +192,7 @@ local function create_options_category()
 	name:SetPoint("TOPLEFT", 16, -16)
 	name:SetText(addon_name)
 	
-	index = 0
+	local index = 0
 	index = generateOptionsFromCategory(container, name, index, 0)
 	index = generateOptionsFromCategory(container, name, index, 1)
 	index = generateOptionsFromCategory(container, name, index, 2)
@@ -152,8 +218,8 @@ debug("functions loaded")
 SLASH_CDMBBE1 = '/cdmbbe'
 local function handler(msg, editBox)
 	local command, rest = msg:match("^(%S*)%s*(.-)$")
-	if command == "get" then
-		print(BuffBarCooldownViewer:GetHeight())	
+	if command == "test" then
+		testColorSelect()	
 	elseif command == "set" then
 		BuffBarCooldownViewer:GetItemFrames()[1]:GetBarFrame():SetStatusBarColor(1.0, 0.0, 1.0, 1.0)
 		debug("set")
